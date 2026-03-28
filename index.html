@@ -46,6 +46,12 @@
         </select>
       </div>
       <div class="divider"></div>
+      <div class="input-group">
+        <label>📋 Import Questions (CSV)</label>
+        <input type="file" id="csv-input" accept=".csv" class="input-field" onchange="handleCsvImport(event)">
+        <div id="import-status" style="font-size:0.8rem;color:var(--gray-light);margin-top:6px"></div>
+      </div>
+      <div class="divider"></div>
       <button class="btn btn-primary" onclick="hostGeneratePin()">Generate PIN & Open Lobby</button>
       <button class="btn btn-ghost" style="margin-top:10px" onclick="showScreen('home-screen')">Back</button>
     </div>

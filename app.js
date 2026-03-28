@@ -1,6 +1,7 @@
 // ================ GLOBAL STATE ================
 var QUESTION_TIME = 12; // seconds per question
 var gameVolume = 0.7; // 70% default
+var importedQuestions = []; // CSV-imported questions
 
 const GameState = {
   pin: '',
@@ -51,7 +52,10 @@ function showScreen(screenName) {
 }
 
 function filterQuestions(category, difficulty) {
-  let filtered = QUESTIONS.filter(function(q) {
+  // Use imported questions if available, otherwise use default QUESTIONS
+  const questionSource = importedQuestions.length > 0 ? importedQuestions : QUESTIONS;
+  
+  let filtered = questionSource.filter(function(q) {
     const catMatch = (category === 'All' || q.category === category);
     const diffMatch = (difficulty === 'All' || q.difficulty === difficulty);
     return catMatch && diffMatch;
@@ -59,7 +63,7 @@ function filterQuestions(category, difficulty) {
 
   if (!filtered || filtered.length < 3) {
     console.warn('filterQuestions: too few results, falling back to all questions');
-    filtered = QUESTIONS.slice();
+    filtered = questionSource.slice();
   }
 
   for (let i = filtered.length - 1; i > 0; i--) {
@@ -79,6 +83,122 @@ function calculateScore(timeRemainingSeconds) {
 
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ================ CSV IMPORT ================
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) {
+    throw new Error('CSV must have at least a header row and one data row');
+  }
+
+  const header = lines[0].toLowerCase();
+  const expectedColumns = ['question', 'answera', 'answerb', 'answerc', 'answerd', 'correct', 'category', 'difficulty', 'scripture'];
+  
+  // Simple check: expected columns should appear in header
+  for (let col of expectedColumns) {
+    if (!header.includes(col)) {
+      throw new Error('Missing required column: ' + col);
+    }
+  }
+
+  const questions = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const row = parseCSVLine(line);
+    if (row.length < 9) {
+      console.warn('Row ' + (i + 1) + ' skipped: insufficient columns');
+      continue;
+    }
+
+    const question = {
+      question: row[0],
+      answers: [row[1], row[2], row[3], row[4]],
+      correct: row[5],
+      category: row[6],
+      difficulty: row[7],
+      scripture: row[8]
+    };
+
+    // Validate correct is 0-3
+    if (!/^[0-3]$/.test(question.correct)) {
+      console.warn('Row ' + (i + 1) + ' skipped: correct must be 0-3');
+      continue;
+    }
+
+    // Validate all answers are non-empty
+    if (question.answers.some(a => !a || a.trim() === '')) {
+      console.warn('Row ' + (i + 1) + ' skipped: all answers required');
+      continue;
+    }
+
+    questions.push(question);
+  }
+
+  return questions;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current.trim());
+  return result;
+}
+
+function handleCsvImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const questions = parseCSV(text);
+
+      if (questions.length === 0) {
+        throw new Error('No valid questions found in CSV');
+      }
+
+      importedQuestions = questions;
+      const status = document.getElementById('import-status');
+      if (status) {
+        status.textContent = '✓ Loaded ' + questions.length + ' questions from CSV';
+        status.style.color = '#4CAF50';
+      }
+    } catch (err) {
+      const status = document.getElementById('import-status');
+      if (status) {
+        status.textContent = '✗ Error: ' + err.message;
+        status.style.color = '#FF5722';
+      }
+      importedQuestions = [];
+    }
+  };
+  reader.readAsText(file);
 }
 
 // ================ SOUND & VOLUME ================
