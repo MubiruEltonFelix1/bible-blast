@@ -3,146 +3,146 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bible Battle ⚔️ — Bible Quiz Game</title>
+  <title>Bible Battle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    
-    <!-- ==================== SCREEN 1: HOME ==================== -->
-    <div id="home-screen" class="screen">
-      <h1>Bible Battle ⚔️</h1>
-      <p class="tagline">Test your scripture knowledge!</p>
-      <div class="button-group">
-        <button id="host-btn" class="btn-primary">🎮 Host a Game</button>
-        <button id="join-btn" class="btn-primary">👥 Join a Game</button>
-      </div>
-    </div>
 
-    <!-- ==================== SCREEN 2: HOST SETUP ==================== -->
-    <div id="host-setup-screen" class="screen">
-      <h2>Setup Your Quiz</h2>
-      <div class="form-container">
-        <div class="form-group">
-          <label for="quiz-title-input">Quiz Title</label>
-          <input type="text" id="quiz-title-input" placeholder="e.g., Bible Battle Round 1">
-        </div>
-        
-        <div class="form-group">
-          <label for="category-select">Category</label>
-          <select id="category-select">
-            <option value="All">All</option>
-            <option value="Old Testament">Old Testament</option>
-            <option value="New Testament">New Testament</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label for="difficulty-select">Difficulty</label>
-          <select id="difficulty-select">
-            <option value="All">All</option>
-            <option value="Easy">Easy</option>
-            <option value="Medium">Medium</option>
-            <option value="Hard">Hard</option>
-          </select>
-        </div>
-        
-        <button id="start-lobby-btn" class="btn-primary">Generate PIN & Start Lobby</button>
-      </div>
+  <!-- ── HOME ─────────────────────────── -->
+  <div id="home-screen" class="screen active">
+    <div class="home-logo">⚔️<br>Bible Battle</div>
+    <p class="tagline" style="text-align:center;margin-top:12px">Test your scripture knowledge</p>
+    <div class="home-buttons">
+      <button class="btn btn-primary" onclick="showScreen('host-setup-screen')">Host a Game</button>
+      <button class="btn btn-ghost" onclick="showScreen('join-screen')">Join a Game</button>
     </div>
-
-    <!-- ==================== SCREEN 3: LOBBY ==================== -->
-    <div id="lobby-screen" class="screen">
-      <h2>Game PIN</h2>
-      <p>Share this PIN with players:</p>
-      <div class="pin-display" id="pin-display">000000</div>
-      
-      <div class="lobby-info">
-        <p><strong>Quiz:</strong> <span id="quiz-title-display">Bible Battle Round 1</span></p>
-        <p><strong>Players Ready:</strong> 1 (waiting for others...)</p>
-      </div>
-      
-      <button id="start-game-btn" class="btn-primary">Start Game</button>
-    </div>
-
-    <!-- ==================== SCREEN 4: PLAYER JOIN ==================== -->
-    <div id="player-join-screen" class="screen">
-      <h2>Join a Game</h2>
-      <div class="form-container">
-        <div class="form-group">
-          <label for="pin-input">Enter Game PIN</label>
-          <input type="text" id="pin-input" placeholder="e.g., 123456" maxlength="6">
-        </div>
-        
-        <div class="form-group">
-          <label for="player-name-input">Your Name</label>
-          <input type="text" id="player-name-input" placeholder="e.g., John">
-        </div>
-        
-        <button id="join-game-btn" class="btn-primary">Join Game</button>
-      </div>
-    </div>
-
-    <!-- ==================== SCREEN 5: WAITING ==================== -->
-    <div id="waiting-screen" class="screen">
-      <h2>Waiting for Host</h2>
-      <p class="waiting-message">Host is setting up the game...</p>
-      <div class="lobby-info">
-        <p id="player-name-display"></p>
-      </div>
-    </div>
-
-    <!-- ==================== SCREEN 6: QUESTION ==================== -->
-    <div id="question-screen" class="screen">
-      <div class="question-container">
-        <div class="question-header">
-          <span id="question-counter">Question 1 of 10</span>
-          <div>
-            <span class="badge" id="question-category">Old Testament</span>
-            <span class="badge difficulty-medium" id="question-difficulty">Easy</span>
-          </div>
-        </div>
-        
-        <div id="question-text">How many days did God take to create the world?</div>
-        
-        <div class="timer-container">
-          <div id="timer-text">20s</div>
-          <div class="timer-bar-bg">
-            <div id="timer-bar"></div>
-          </div>
-        </div>
-        
-        <div id="answers-container"></div>
-        
-        <div id="scripture-ref"></div>
-      </div>
-    </div>
-
-    <!-- ==================== SCREEN 7: LEADERBOARD ==================== -->
-    <div id="leaderboard-screen" class="screen">
-      <h2>📊 Leaderboard</h2>
-      <div id="leaderboard-list"></div>
-      <button id="next-question-btn" class="btn-primary">Next Question</button>
-    </div>
-
-    <!-- ==================== SCREEN 8: RESULTS ==================== -->
-    <div id="results-screen" class="screen">
-      <h2>🏆 Game Over!</h2>
-      
-      <div class="podium" id="podium"></div>
-      
-      <h3 style="margin-top: 40px;">Final Leaderboard</h3>
-      <div id="full-leaderboard"></div>
-      
-      <button id="play-again-btn" class="btn-primary">Play Again</button>
-    </div>
-
   </div>
 
-  <!-- Confetti container -->
-  <div id="confetti"></div>
+  <!-- ── HOST SETUP ───────────────────── -->
+  <div id="host-setup-screen" class="screen">
+    <div class="card">
+      <div class="section-title">Host Setup</div>
+      <div class="input-group">
+        <label>Category</label>
+        <select id="category-select" class="input-field">
+          <option value="All">All Books</option>
+          <option value="Old Testament">Old Testament</option>
+          <option value="New Testament">New Testament</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Difficulty</label>
+        <select id="difficulty-select" class="input-field">
+          <option value="All">All Levels</option>
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-primary" onclick="hostGeneratePin()">Generate PIN & Open Lobby</button>
+      <button class="btn btn-ghost" style="margin-top:10px" onclick="showScreen('home-screen')">Back</button>
+    </div>
+  </div>
 
-  <!-- Script loading order matters: questions first, then app -->
+  <!-- ── LOBBY (Host) ──────────────────── -->
+  <div id="lobby-screen" class="screen">
+    <div class="card" style="text-align:center">
+      <div class="section-title">Game PIN</div>
+      <div class="pin-badge" id="pin-display">------</div>
+      <p class="pin-label">Share this PIN with players</p>
+      <div id="lobby-player-list" class="lb-list" style="margin-bottom:20px"></div>
+      <div class="player-pill"><span>👥</span> <span id="player-count">0</span> players joined</div>
+      <div class="divider"></div>
+      <button class="btn btn-primary" style="margin-top:8px" onclick="hostStartGame()">Start Game</button>
+    </div>
+  </div>
+
+  <!-- ── JOIN ──────────────────────────── -->
+  <div id="join-screen" class="screen">
+    <div class="card">
+      <div class="section-title">Join Game</div>
+      <div class="input-group">
+        <label>Game PIN</label>
+        <input id="pin-input" class="input-field" type="text" placeholder="6-digit PIN" maxlength="6" inputmode="numeric">
+      </div>
+      <div class="input-group">
+        <label>Your Name</label>
+        <input id="name-input" class="input-field" type="text" placeholder="e.g. Solomon" maxlength="20">
+      </div>
+      <div class="error-msg" id="join-error"></div>
+      <button class="btn btn-primary" onclick="joinGame()">Join Game</button>
+      <button class="btn btn-ghost" style="margin-top:10px" onclick="showScreen('home-screen')">Back</button>
+    </div>
+  </div>
+
+  <!-- ── WAITING ───────────────────────── -->
+  <div id="waiting-screen" class="screen">
+    <div class="card" style="text-align:center">
+      <div class="waiting-pulse"></div>
+      <div class="section-title">You're in!</div>
+      <p class="tagline" id="waiting-name-display"></p>
+      <p style="color:var(--ash);font-size:0.85rem;margin-top:16px">Waiting for the host to start the game…</p>
+    </div>
+  </div>
+
+  <!-- ── QUESTION ──────────────────────── -->
+  <div id="question-screen" class="screen" style="justify-content:flex-start;padding-top:0">
+    <div class="question-header">
+      <div class="q-meta">
+        <span class="badge" id="q-category-badge">—</span>
+        <span class="badge easy" id="q-difficulty-badge">—</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <span class="q-counter" id="q-counter">Q 1/10</span>
+        <span class="timer-number" id="timer-number">20</span>
+      </div>
+    </div>
+
+    <div class="timer-track" style="padding:0 24px;max-width:700px;width:100%">
+      <div class="timer-fill" id="timer-fill" style="width:100%"></div>
+    </div>
+
+    <div class="question-body">
+      <p class="question-text" id="question-text">Loading question…</p>
+    </div>
+
+    <div class="answers-grid" id="answers-grid">
+      <button class="answer-btn" data-index="0" onclick="selectAnswer(0)"><span class="answer-letter">A</span><span id="ans-0"></span></button>
+      <button class="answer-btn" data-index="1" onclick="selectAnswer(1)"><span class="answer-letter">B</span><span id="ans-1"></span></button>
+      <button class="answer-btn" data-index="2" onclick="selectAnswer(2)"><span class="answer-letter">C</span><span id="ans-2"></span></button>
+      <button class="answer-btn" data-index="3" onclick="selectAnswer(3)"><span class="answer-letter">D</span><span id="ans-3"></span></button>
+    </div>
+
+    <div class="feedback-strip" id="feedback-strip" style="max-width:652px;margin:0 24px">
+      <div id="feedback-text"></div>
+      <div class="scripture-text" id="scripture-text"></div>
+    </div>
+  </div>
+
+  <!-- ── LEADERBOARD (between questions) ── -->
+  <div id="leaderboard-screen" class="screen">
+    <div class="card" style="max-width:600px">
+      <div class="section-title">Leaderboard</div>
+      <div class="lb-list" id="leaderboard-list"></div>
+      <!-- Host only: next question button (shown via JS) -->
+      <button class="btn btn-primary" id="next-q-btn" style="margin-top:20px;display:none" onclick="hostNextQuestion()">Next Question →</button>
+    </div>
+  </div>
+
+  <!-- ── FINAL RESULTS ─────────────────── -->
+  <div id="results-screen" class="screen">
+    <div class="card" style="max-width:600px;text-align:center">
+      <div class="display-title">Game Over</div>
+      <p class="tagline" style="margin-bottom:16px">Well played, soldiers of scripture</p>
+      <div class="podium" id="podium"></div>
+      <div class="divider"></div>
+      <div class="lb-list" id="final-leaderboard"></div>
+      <button class="btn btn-primary" style="margin-top:24px" onclick="resetGame()">Play Again</button>
+    </div>
+  </div>
+
   <script src="questions.js"></script>
   <script src="app.js"></script>
 </body>
