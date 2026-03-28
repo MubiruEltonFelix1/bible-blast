@@ -261,7 +261,15 @@ function initializeVolume() {
 function initializePinFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const pin = params.get('pin');
+  const monitorPin = params.get('monitor');
   
+  // Monitor mode
+  if (monitorPin && monitorPin.length === 6 && /^\d+$/.test(monitorPin)) {
+    startMonitorMode(monitorPin);
+    return;
+  }
+  
+  // Regular join mode
   if (pin && pin.length === 6 && /^\d+$/.test(pin)) {
     // Auto-populate PIN field
     const pinInput = document.getElementById('pin-input');
@@ -274,6 +282,116 @@ function initializePinFromUrl() {
     }
   }
 }
+
+// ================ MONITOR MODE ================
+
+var monitorInterval = null;
+
+function startMonitorMode(pin) {
+  console.log('Starting monitor mode for PIN:', pin);
+  showScreen('monitor-screen');
+  document.getElementById('monitor-pin').textContent = 'PIN: ' + pin;
+  
+  // Update monitor every 500ms
+  updateMonitorDisplay(pin);
+  monitorInterval = setInterval(function() {
+    updateMonitorDisplay(pin);
+  }, 500);
+}
+
+function updateMonitorDisplay(pin) {
+  const shared = readSharedState(pin);
+  if (!shared) {
+    document.getElementById('monitor-leaderboard').innerHTML = '<p style="color:#FF5722">Game not found for PIN ' + pin + '</p>';
+    return;
+  }
+  
+  // Display current question if in question state
+  if (shared.status === 'question' && shared.questions && shared.questions[shared.questionIndex]) {
+    const question = shared.questions[shared.questionIndex];
+    const qDiv = document.getElementById('monitor-question');
+    const qText = document.getElementById('monitor-q-text');
+    const qAnswers = document.getElementById('monitor-answers');
+    
+    qText.textContent = question.question;
+    qAnswers.innerHTML = '';
+    
+    for (let i = 0; i < question.answers.length; i++) {
+      const btn = document.createElement('div');
+      btn.style.padding = '12px;';
+      btn.style.background = getAnswerColor(i);
+      btn.style.color = 'white';
+      btn.style.borderRadius = '8px';
+      btn.style.fontWeight = '600';
+      btn.textContent = String.fromCharCode(65 + i) + ') ' + question.answers[i];
+      qAnswers.appendChild(btn);
+    }
+    
+    qDiv.style.display = 'block';
+  } else {
+    document.getElementById('monitor-question').style.display = 'none';
+  }
+  
+  // Display leaderboard
+  displayMonitorLeaderboard(shared.players);
+}
+
+function getAnswerColor(index) {
+  const colors = ['#FF5722', '#2196F3', '#4CAF50', '#FF9800'];
+  return colors[index] || '#999';
+}
+
+function displayMonitorLeaderboard(players) {
+  const lbDiv = document.getElementById('monitor-lb-list');
+  
+  if (!players || players.length === 0) {
+    lbDiv.innerHTML = '<p style="color:#999;font-style:italic">Waiting for players to join...</p>';
+    return;
+  }
+  
+  // Sort by score descending
+  const sorted = players.slice().sort(function(a, b) {
+    return (b.score || 0) - (a.score || 0);
+  });
+  
+  lbDiv.innerHTML = '';
+  
+  sorted.forEach(function(player, index) {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.padding = '12px 16px';
+    row.style.background = index === 0 ? 'rgba(255, 140, 0, 0.1)' : 'rgba(0, 86, 179, 0.05)';
+    row.style.borderRadius = '8px';
+    row.style.borderLeft = (index === 0 ? '4px solid var(--accent-orange)' : '4px solid var(--primary-blue)');
+    
+    const rank = document.createElement('span');
+    rank.style.fontWeight = '700';
+    rank.style.color = 'var(--accent-orange)';
+    rank.style.minWidth = '40px';
+    rank.style.fontSize = '1.1rem';
+    rank.textContent = '#' + (index + 1);
+    row.appendChild(rank);
+    
+    const name = document.createElement('span');
+    name.style.flex = '1';
+    name.style.marginLeft = '12px';
+    name.style.color = 'var(--text-dark)';
+    name.style.fontWeight = '600';
+    name.textContent = player.name;
+    row.appendChild(name);
+    
+    const score = document.createElement('span');
+    score.style.fontWeight = '700';
+    score.style.color = 'var(--primary-blue)';
+    score.style.fontSize = '1.1rem';
+    score.textContent = player.score + ' pts';
+    row.appendChild(score);
+    
+    lbDiv.appendChild(row);
+  });
+}
+
 
 // Initialize on page load
 if (document.readyState === 'loading') {
