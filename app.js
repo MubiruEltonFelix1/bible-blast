@@ -1,5 +1,6 @@
 // ================ GLOBAL STATE ================
 var QUESTION_TIME = 12; // seconds per question
+var gameVolume = 0.7; // 70% default
 
 const GameState = {
   pin: '',
@@ -11,7 +12,8 @@ const GameState = {
   timeRemaining: 12,
   pollInterval: null,
   category: 'All',
-  difficulty: 'All'
+  difficulty: 'All',
+  streak: 0
 };
 
 // ================ LOCALSTORAGE SYNC ================
@@ -79,6 +81,70 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ================ SOUND & VOLUME ================
+
+function playSound(frequency, duration, type = 'sine') {
+  if (gameVolume <= 0) return;
+  
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    
+    gainNode.gain.setValueAtTime(gameVolume * 0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+  } catch (e) {
+    console.log('Audio not supported');
+  }
+}
+
+function playCorrectSound() {
+  // Two ascending beeps
+  playSound(523, 0.1); // C5
+  setTimeout(() => playSound(659, 0.15), 100); // E5
+}
+
+function playWrongSound() {
+  // Descending beep
+  playSound(400, 0.2);
+}
+
+function updateVolume(value) {
+  gameVolume = value / 100;
+  const label = document.getElementById('volume-label');
+  if (label) label.textContent = value + '%';
+  localStorage.setItem('bb_volume', gameVolume);
+}
+
+function initializeVolume() {
+  const saved = localStorage.getItem('bb_volume');
+  if (saved) {
+    gameVolume = parseFloat(saved);
+    const slider = document.getElementById('volume-slider');
+    if (slider) {
+      slider.value = gameVolume * 100;
+      const label = document.getElementById('volume-label');
+      if (label) label.textContent = Math.round(gameVolume * 100) + '%';
+    }
+  }
+}
+
+// Initialize volume on page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeVolume);
+} else {
+  initializeVolume();
+}
+
 function updateTimerDisplay(seconds) {
   const fill = document.getElementById('timer-fill');
   const num = document.getElementById('timer-number');
@@ -93,6 +159,20 @@ function updateTimerDisplay(seconds) {
   fill.classList.toggle('urgent', urgent);
 }
 
+function updateStreakDisplay() {
+  const badge = document.getElementById('streak-badge');
+  const count = document.getElementById('streak-count');
+  
+  if (!badge || !count) return;
+  
+  if (GameState.streak > 0) {
+    count.textContent = GameState.streak;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 function renderQuestion(question) {
   document.getElementById('question-text').textContent = question.question;
   document.getElementById('ans-0').textContent = question.answers[0];
@@ -105,6 +185,9 @@ function renderQuestion(question) {
   const shared = readSharedState(GameState.pin);
   const total = shared ? shared.questions.length : 10;
   document.getElementById('q-counter').textContent = 'Q ' + (GameState.currentQuestion + 1) + '/' + total;
+
+  // Update streak display
+  updateStreakDisplay();
 
   const btns = document.querySelectorAll('.answer-btn');
   btns.forEach(b => {
@@ -303,6 +386,7 @@ function hostStartGame() {
   GameState.questions = questions;
   GameState.currentQuestion = 0;
   GameState.answered = false;
+  GameState.streak = 0;
   renderQuestion(questions[0]);
   showScreen('question-screen');
 }
@@ -400,6 +484,17 @@ function selectAnswer(selectedIndex) {
   const isCorrect = selectedIndex === correctIndex;
   const points = isCorrect ? calculateScore(GameState.timeRemaining) : 0;
 
+  // Handle streak
+  if (isCorrect) {
+    GameState.streak++;
+    playCorrectSound();
+  } else {
+    GameState.streak = 0;
+    playWrongSound();
+  }
+  
+  updateStreakDisplay();
+
   const buttons = document.querySelectorAll('.answer-btn');
   buttons.forEach((btn, i) => {
     btn.disabled = true;
@@ -426,6 +521,12 @@ function timeUp() {
 
   const question = GameState.questions[GameState.currentQuestion];
   const correctIndex = Number(question.correct);
+  
+  // Reset streak on timeout
+  GameState.streak = 0;
+  updateStreakDisplay();
+  playWrongSound();
+
   const buttons = document.querySelectorAll('.answer-btn');
 
   buttons.forEach((btn, i) => {

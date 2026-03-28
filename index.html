@@ -17,6 +17,11 @@
       <button class="btn btn-primary" onclick="showScreen('host-setup-screen')">Host a Game</button>
       <button class="btn btn-ghost" onclick="showScreen('join-screen')">Join a Game</button>
     </div>
+    <div class="volume-control" style="margin-top:24px;text-align:center">
+      <label for="volume-slider" style="display:block;font-size:0.85rem;color:var(--gray-light);margin-bottom:8px">🔊 Sound Volume</label>
+      <input type="range" id="volume-slider" min="0" max="100" value="70" class="volume-slider" onchange="updateVolume(this.value)">
+      <span id="volume-label" style="display:block;font-size:0.75rem;color:var(--gray-light);margin-top:4px">70%</span>
+    </div>
   </div>
 
   <!-- ── HOST SETUP ───────────────────── -->
@@ -93,6 +98,7 @@
       <div class="q-meta">
         <span class="badge" id="q-category-badge">—</span>
         <span class="badge easy" id="q-difficulty-badge">—</span>
+        <span class="streak-badge" id="streak-badge" style="display:none">🔥 <span id="streak-count">0</span></span>
       </div>
       <div style="display:flex;align-items:center;gap:16px">
         <span class="q-counter" id="q-counter">Q 1/10</span>
