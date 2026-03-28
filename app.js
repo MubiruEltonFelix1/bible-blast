@@ -1,4 +1,6 @@
 // ================ GLOBAL STATE ================
+var QUESTION_TIME = 12; // seconds per question
+
 const GameState = {
   pin: '',
   isHost: false,
@@ -6,7 +8,7 @@ const GameState = {
   questions: [],
   currentQuestion: 0,
   answered: false,
-  timeRemaining: 20,
+  timeRemaining: 12,
   pollInterval: null,
   category: 'All',
   difficulty: 'All'
@@ -47,26 +49,30 @@ function showScreen(screenName) {
 }
 
 function filterQuestions(category, difficulty) {
-  let filtered = QUESTIONS;
+  let filtered = QUESTIONS.filter(function(q) {
+    const catMatch = (category === 'All' || q.category === category);
+    const diffMatch = (difficulty === 'All' || q.difficulty === difficulty);
+    return catMatch && diffMatch;
+  });
 
-  if (category !== 'All') {
-    filtered = filtered.filter(q => q.category === category);
-  }
-
-  if (difficulty !== 'All') {
-    filtered = filtered.filter(q => q.difficulty === difficulty);
-  }
-
-  if (filtered.length < 5) {
+  if (!filtered || filtered.length < 3) {
+    console.warn('filterQuestions: too few results, falling back to all questions');
     filtered = QUESTIONS.slice();
   }
 
-  filtered.sort(() => Math.random() - 0.5);
-  return filtered.slice(0, 10);
+  for (let i = filtered.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = filtered[i];
+    filtered[i] = filtered[j];
+    filtered[j] = temp;
+  }
+
+  return filtered.slice(0, Math.min(10, filtered.length));
 }
 
 function calculateScore(timeRemainingSeconds) {
-  return Math.max(100, 1000 - (20 - timeRemainingSeconds) * 40);
+  var totalTime = QUESTION_TIME;
+  return Math.max(100, Math.round(1000 - (totalTime - timeRemainingSeconds) * (900 / totalTime)));
 }
 
 function escapeHtml(str) {
@@ -78,11 +84,11 @@ function updateTimerDisplay(seconds) {
   const num = document.getElementById('timer-number');
   if (!fill || !num) return;
 
-  const pct = (seconds / 20) * 100;
+  const pct = (seconds / QUESTION_TIME) * 100;
   fill.style.width = pct + '%';
   num.textContent = seconds;
 
-  const urgent = seconds <= 5;
+  const urgent = seconds <= Math.floor(QUESTION_TIME / 3);
   num.classList.toggle('urgent', urgent);
   fill.classList.toggle('urgent', urgent);
 }
@@ -111,7 +117,7 @@ function renderQuestion(question) {
   fb.style.display = 'none';
 
   GameState.answered = false;
-  updateTimerDisplay(20);
+  updateTimerDisplay(QUESTION_TIME);
 }
 
 function showAnswerFeedback(isCorrect, points, scripture) {
@@ -229,14 +235,19 @@ function refreshLobbyDisplay() {
   }
 }
 
+function resetPollTrackers() {
+  _lastStatus = null;
+  _lastQuestionIndex = -1;
+}
+
 // ================ HOST FUNCTIONS ================
 
 function hostGeneratePin() {
   const pin = String(Math.floor(100000 + Math.random() * 900000));
   GameState.pin = pin;
   GameState.isHost = true;
-  GameState.category = document.getElementById('category-select').value;
-  GameState.difficulty = document.getElementById('difficulty-select').value;
+  GameState.category = document.getElementById('category-select').value || 'All';
+  GameState.difficulty = document.getElementById('difficulty-select').value || 'All';
 
   const state = {
     pin: pin,
@@ -249,40 +260,55 @@ function hostGeneratePin() {
   };
 
   writeSharedState(pin, state);
+  const pinDisplay = document.getElementById('pin-display');
+  if (pinDisplay) pinDisplay.textContent = pin;
   showScreen('lobby-screen');
-  document.getElementById('pin-display').textContent = pin;
 
+  resetPollTrackers();
   startPolling(pin);
 }
 
 function hostStartGame() {
   const shared = readSharedState(GameState.pin);
-  if (!shared) return;
+  if (!shared) {
+    alert('Game session not found. Please generate a new PIN.');
+    return;
+  }
 
-  const questions = filterQuestions(GameState.category, GameState.difficulty);
+  const category = (document.getElementById('category-select') || {}).value || 'All';
+  const difficulty = (document.getElementById('difficulty-select') || {}).value || 'All';
+
+  let questions = filterQuestions(category, difficulty);
+
+  if (!questions || questions.length === 0) {
+    alert('No questions found for that filter. Using all questions.');
+    questions = filterQuestions('All', 'All');
+  }
+
+  // Add host as a player if not already in
+  const hostPlayerName = 'Host';
+  const alreadyIn = shared.players.some(p => p.name === hostPlayerName);
+  if (!alreadyIn) {
+    shared.players.push({ name: hostPlayerName, score: 0, answers: [], lastUpdated: Date.now() });
+    GameState.currentPlayer = { name: hostPlayerName };
+  }
+
   shared.questions = questions;
   shared.status = 'question';
   shared.questionIndex = 0;
   shared.questionStartTime = Date.now();
 
   writeSharedState(GameState.pin, shared);
+
+  GameState.questions = questions;
+  GameState.currentQuestion = 0;
+  GameState.answered = false;
+  renderQuestion(questions[0]);
+  showScreen('question-screen');
 }
 
 function hostNextQuestion() {
-  const shared = readSharedState(GameState.pin);
-  if (!shared) return;
-
-  const nextIndex = shared.questionIndex + 1;
-
-  if (nextIndex >= shared.questions.length) {
-    shared.status = 'finished';
-  } else {
-    shared.status = 'question';
-    shared.questionIndex = nextIndex;
-    shared.questionStartTime = Date.now();
-  }
-
-  writeSharedState(GameState.pin, shared);
+  advanceFromQuestion();
 }
 
 // ================ PLAYER FUNCTIONS ================
@@ -321,6 +347,7 @@ function joinGame() {
   GameState.currentPlayer = newPlayer;
   GameState.isHost = false;
 
+  resetPollTrackers();
   startPolling(pin);
 
   if (shared.status === 'lobby') {
@@ -339,8 +366,13 @@ function submitPlayerAnswer(pin, playerName, questionIndex, selectedIndex, corre
   const shared = readSharedState(pin);
   if (!shared) return;
 
-  const player = shared.players.find(p => p.name === playerName);
-  if (!player) return;
+  let player = shared.players.find(p => p.name === playerName);
+
+  // If player not found, create entry (e.g., host playing)
+  if (!player) {
+    player = { name: playerName, score: 0, answers: [], lastUpdated: Date.now() };
+    shared.players.push(player);
+  }
 
   const alreadyAnswered = player.answers.some(a => a.questionIndex === questionIndex);
   if (alreadyAnswered) return;
@@ -350,7 +382,7 @@ function submitPlayerAnswer(pin, playerName, questionIndex, selectedIndex, corre
     selectedIndex: selectedIndex,
     correct: correct,
     points: correct ? points : 0,
-    timeMs: Date.now() - shared.questionStartTime
+    timeMs: shared.questionStartTime ? Date.now() - shared.questionStartTime : 0
   });
 
   player.score = player.answers.reduce((sum, a) => sum + a.points, 0);
@@ -379,6 +411,64 @@ function selectAnswer(selectedIndex) {
   showAnswerFeedback(isCorrect, points, question.scripture);
 
   submitPlayerAnswer(GameState.pin, GameState.currentPlayer.name, GameState.currentQuestion, selectedIndex, isCorrect, points);
+
+  // Auto-advance after feedback delay
+  setTimeout(function() {
+    if (GameState.isHost) {
+      advanceFromQuestion();
+    }
+  }, 2500);
+}
+
+function timeUp() {
+  if (GameState.answered) return;
+  GameState.answered = true;
+
+  const question = GameState.questions[GameState.currentQuestion];
+  const correctIndex = Number(question.correct);
+  const buttons = document.querySelectorAll('.answer-btn');
+
+  buttons.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === correctIndex) btn.classList.add('correct');
+  });
+
+  showAnswerFeedback(false, 0, question.scripture);
+  submitPlayerAnswer(
+    GameState.pin,
+    GameState.currentPlayer.name,
+    GameState.currentQuestion,
+    -1,
+    false,
+    0
+  );
+
+  // Auto-advance after feedback delay
+  setTimeout(function() {
+    if (GameState.isHost) {
+      advanceFromQuestion();
+    }
+  }, 2500);
+}
+
+function advanceFromQuestion() {
+  const shared = readSharedState(GameState.pin);
+  if (!shared) return;
+
+  const nextIndex = shared.questionIndex + 1;
+  const isLastQuestion = nextIndex >= shared.questions.length;
+
+  if (isLastQuestion) {
+    // Last question answered — go straight to finished (results/leaderboard)
+    shared.status = 'finished';
+    writeSharedState(GameState.pin, shared);
+  } else {
+    // More questions — go straight to next question (skip leaderboard)
+    shared.status = 'question';
+    shared.questionIndex = nextIndex;
+    shared.questionStartTime = Date.now();
+    writeSharedState(GameState.pin, shared);
+  }
 }
 
 // ================ POLLING LOOP ================
@@ -393,57 +483,45 @@ function startPolling(pin) {
     const shared = readSharedState(pin);
     if (!shared) return;
 
+    // Lobby: refresh player list for host
+    if (shared.status === 'lobby') {
+      refreshLobbyDisplay();
+      return;
+    }
+
     const statusChanged = shared.status !== _lastStatus;
     const questionChanged = shared.questionIndex !== _lastQuestionIndex;
 
-    _lastStatus = shared.status;
-    _lastQuestionIndex = shared.questionIndex;
-
-    // Update timer from shared clock
+    // Sync timer on question screen
     if (shared.status === 'question' && shared.questionStartTime) {
       const elapsed = Math.floor((Date.now() - shared.questionStartTime) / 1000);
-      GameState.timeRemaining = Math.max(0, 20 - elapsed);
+      GameState.timeRemaining = Math.max(0, QUESTION_TIME - elapsed);
       updateTimerDisplay(GameState.timeRemaining);
 
-      if (GameState.timeRemaining === 0 && !GameState.answered) {
-        GameState.answered = true;
-        const question = GameState.questions[GameState.currentQuestion];
-        const correctIndex = Number(question.correct);
-        const buttons = document.querySelectorAll('.answer-btn');
-        buttons.forEach((btn, i) => {
-          btn.disabled = true;
-          if (i === correctIndex) btn.classList.add('correct');
-        });
-
-        showAnswerFeedback(false, 0, question.scripture);
-        submitPlayerAnswer(GameState.pin, GameState.currentPlayer.name, GameState.currentQuestion, -1, false, 0);
+      if (GameState.timeRemaining <= 0 && !GameState.answered) {
+        timeUp();
       }
     }
 
-    // React to state transitions
+    // React to status / question changes
     if (statusChanged || questionChanged) {
-      if (shared.status === 'question' && questionChanged) {
+      _lastStatus = shared.status;
+      _lastQuestionIndex = shared.questionIndex;
+
+      if (shared.status === 'question') {
         GameState.questions = shared.questions;
         GameState.currentQuestion = shared.questionIndex;
         GameState.answered = false;
         renderQuestion(shared.questions[shared.questionIndex]);
         showScreen('question-screen');
+        return;
       }
-      if (shared.status === 'leaderboard') {
-        renderLeaderboard(shared.players);
-        const nqBtn = document.getElementById('next-q-btn');
-        if (nqBtn) nqBtn.style.display = GameState.isHost ? 'block' : 'none';
-        showScreen('leaderboard-screen');
-      }
+
       if (shared.status === 'finished') {
         renderFinalResults(shared.players);
         showScreen('results-screen');
+        return;
       }
-    }
-
-    // Update lobby player display
-    if (GameState.isHost && shared.status === 'lobby') {
-      refreshLobbyDisplay();
     }
   }, 500);
 }
