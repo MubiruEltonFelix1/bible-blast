@@ -258,11 +258,32 @@ function initializeVolume() {
   }
 }
 
-// Initialize volume on page load
+function initializePinFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const pin = params.get('pin');
+  
+  if (pin && pin.length === 6 && /^\d+$/.test(pin)) {
+    // Auto-populate PIN field
+    const pinInput = document.getElementById('pin-input');
+    if (pinInput) {
+      pinInput.value = pin;
+      // Optionally show join screen
+      setTimeout(function() {
+        showScreen('join-screen');
+      }, 500);
+    }
+  }
+}
+
+// Initialize on page load
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeVolume);
+  document.addEventListener('DOMContentLoaded', function() {
+    initializeVolume();
+    initializePinFromUrl();
+  });
 } else {
   initializeVolume();
+  initializePinFromUrl();
 }
 
 function updateTimerDisplay(seconds) {
@@ -466,9 +487,88 @@ function hostGeneratePin() {
   const pinDisplay = document.getElementById('pin-display');
   if (pinDisplay) pinDisplay.textContent = pin;
   showScreen('lobby-screen');
+  
+  // Generate QR code
+  setTimeout(function() {
+    generateQRCode(pin);
+  }, 100);
 
   resetPollTrackers();
   startPolling(pin);
+}
+
+function generateQRCode(pin) {
+  const qrContainer = document.getElementById('qr-code');
+  if (!qrContainer) return;
+  
+  qrContainer.innerHTML = '';
+  
+  // Create QR code with join link or just PIN
+  const joinUrl = window.location.origin + window.location.pathname + '?pin=' + pin;
+  
+  try {
+    new QRCode(qrContainer, {
+      text: joinUrl,
+      width: 200,
+      height: 200,
+      colorDark: '#0056B3',
+      colorLight: '#FFFFFF',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  } catch (e) {
+    console.log('QR code generation failed, showing PIN only');
+  }
+}
+
+function copyPinToClipboard() {
+  const pin = GameState.pin;
+  if (!pin) return;
+  
+  navigator.clipboard.writeText(pin).then(function() {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#4CAF50';
+    
+    setTimeout(function() {
+      btn.textContent = originalText;
+      btn.style.background = '';
+    }, 2000);
+  }).catch(function(err) {
+    alert('Failed to copy: ' + err);
+  });
+}
+
+function shareGameLink() {
+  const pin = GameState.pin;
+  if (!pin) return;
+  
+  const joinUrl = window.location.origin + window.location.pathname + '?pin=' + pin;
+  const shareText = 'Join my Bible Battle game! PIN: ' + pin + ' or use this link: ' + joinUrl;
+  
+  if (navigator.share) {
+    navigator.share({
+      title: 'Bible Battle Game',
+      text: shareText
+    }).catch(function(err) {
+      console.log('Share failed:', err);
+    });
+  } else {
+    // Fallback: copy link to clipboard
+    navigator.clipboard.writeText(joinUrl).then(function() {
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.textContent = '✓ Link Copied!';
+      btn.style.background = '#4CAF50';
+      
+      setTimeout(function() {
+        btn.textContent = originalText;
+        btn.style.background = '';
+      }, 2000);
+    }).catch(function(err) {
+      alert('Failed to copy: ' + err);
+    });
+  }
 }
 
 function hostStartGame() {

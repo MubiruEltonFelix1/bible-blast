@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bible Battle</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Poppins:wght@600;700;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -48,6 +49,7 @@
       <div class="divider"></div>
       <div class="input-group">
         <label>📋 Import Questions (CSV)</label>
+        <p style="font-size:0.8rem;color:var(--gray-light);margin-bottom:8px">Optional: Upload a CSV with your own questions. Format: question,answerA,answerB,answerC,answerD,correct(0-3),category,difficulty,scripture</p>
         <input type="file" id="csv-input" accept=".csv" class="input-field" onchange="handleCsvImport(event)">
         <div id="import-status" style="font-size:0.8rem;color:var(--gray-light);margin-top:6px"></div>
       </div>
@@ -63,6 +65,14 @@
       <div class="section-title">Game PIN</div>
       <div class="pin-badge" id="pin-display">------</div>
       <p class="pin-label">Share this PIN with players</p>
+      
+      <div id="qr-code" style="margin:20px auto;padding:16px;background:var(--white);border-radius:8px;display:inline-block"></div>
+      
+      <div style="display:flex;gap:8px;justify-content:center;margin:16px 0">
+        <button class="btn btn-ghost" style="flex:1;margin:0" onclick="copyPinToClipboard()">📋 Copy PIN</button>
+        <button class="btn btn-ghost" style="flex:1;margin:0" onclick="shareGameLink()">🔗 Share Link</button>
+      </div>
+      
       <div id="lobby-player-list" class="lb-list" style="margin-bottom:20px"></div>
       <div class="player-pill"><span>👥</span> <span id="player-count">0</span> players joined</div>
       <div class="divider"></div>

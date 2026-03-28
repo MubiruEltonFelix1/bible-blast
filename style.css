@@ -239,6 +239,25 @@ input[type="file"]::file-selector-button:hover {
   margin-bottom: 24px;
 }
 
+/* ── QR CODE ───────────────────────────────── */
+#qr-code {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#qr-code canvas {
+  border: 2px solid var(--accent-orange);
+  border-radius: 8px;
+}
+
+.share-button {
+  flex: 1;
+  margin: 0 4px;
+}
+
 /* ── QUESTION SCREEN ───────────────────────────── */
 #question-screen {
   justify-content: center;
